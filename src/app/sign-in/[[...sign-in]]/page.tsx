@@ -17,7 +17,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"form" | "verify">("form");
   const [verifyLoading, setVerifyLoading] = useState(false);
-  const [devCode, setDevCode] = useState("");
+  const [sentCode, setSentCode] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +48,7 @@ export default function SignInPage() {
 
       const verifyData = await verifyRes.json();
       if (verifyData.code) {
-        setDevCode(verifyData.code);
+        setSentCode(verifyData.code);
       }
 
       setStep("verify");
@@ -98,9 +98,9 @@ export default function SignInPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {devCode && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm mb-4">
-                <strong>Dev mode:</strong> Your code is <strong className="text-lg">{devCode}</strong>
+            {sentCode && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded text-sm mb-4">
+                <strong>Email not sent?</strong> Use this code: <strong className="text-lg">{sentCode}</strong>
               </div>
             )}
             <form onSubmit={handleVerify} className="space-y-4">
@@ -130,13 +130,11 @@ export default function SignInPage() {
                 variant="ghost"
                 className="w-full"
                 onClick={async () => {
-                  const res = await fetch("/api/auth/verify", {
+                  await fetch("/api/auth/verify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, action: "send" }),
                   });
-                  const data = await res.json();
-                  if (data.code) setDevCode(data.code);
                 }}
               >
                 Resend Code

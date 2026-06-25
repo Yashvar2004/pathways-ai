@@ -39,36 +39,44 @@ export async function POST(req: Request) {
         const key = process.env.AUTH_RESEND_KEY;
         if (key) {
           const resend = new Resend(key);
-          await resend.emails.send({
-            from: "Pathways AI <onboarding@resend.dev>",
-            to: email,
-            subject: "Your Pathways AI Verification Code",
-            html: `
-              <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #1a1a1a;">Verify Your Email</h2>
-                <p style="color: #555;">Your verification code is:</p>
-                <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
-                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${verifyCode}</span>
+          const result = await Promise.race([
+            resend.emails.send({
+              from: "onboarding@resend.dev",
+              to: email,
+              subject: "Your Pathways AI Verification Code",
+              html: `
+                <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #1a1a1a;">Verify Your Email</h2>
+                  <p style="color: #555;">Your verification code is:</p>
+                  <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
+                    <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${verifyCode}</span>
+                  </div>
+                  <p style="color: #888; font-size: 14px;">This code expires in 10 minutes.</p>
                 </div>
-                <p style="color: #888; font-size: 14px;">This code expires in 10 minutes.</p>
-              </div>
-            `,
-          });
-          emailSent = true;
+              `,
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Email timeout")), 10000)
+            ),
+          ]);
+
+          if (result && !result.error) {
+            emailSent = true;
+          } else {
+            console.log("Resend error:", result?.error);
+          }
         }
-      } catch (emailErr) {
-        console.error("Email send failed:", emailErr);
+      } catch (emailErr: any) {
+        console.error("Email send failed:", emailErr?.message || emailErr);
       }
 
-      // Always return the code in dev mode for testing
-      const isDev = process.env.NODE_ENV !== "production";
       return NextResponse.json({
         success: true,
         message: emailSent
           ? "Verification code sent to your email"
-          : "Check your email for the verification code",
-        // Include code in response for dev/testing
-        ...(isDev && { code: verifyCode }),
+          : "Verification code generated. Check your email.",
+        // Include code when email fails (for dev/testing)
+        ...(!emailSent && { code: verifyCode }),
       });
     }
 
