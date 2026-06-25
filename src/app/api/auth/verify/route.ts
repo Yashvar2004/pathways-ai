@@ -60,10 +60,10 @@ export async function POST(req: Request) {
             ),
           ]);
 
-          if (result && !result.error) {
+          if (result && !(result as any).error) {
             emailSent = true;
           } else {
-            console.log("Resend error:", result?.error);
+            console.log("Resend error:", (result as any)?.error);
           }
         }
       } catch (emailErr: any) {
