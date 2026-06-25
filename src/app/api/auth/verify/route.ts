@@ -3,13 +3,6 @@ import { db } from "@/lib/db";
 import { users, verificationTokens } from "@/lib/db/schema";
 import { createToken, setSessionCookie } from "@/lib/auth-helpers";
 import { eq, and } from "drizzle-orm";
-import { Resend } from "resend";
-
-function getResend() {
-  const key = process.env.AUTH_RESEND_KEY;
-  if (!key) return null;
-  return new Resend(key);
-}
 
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -24,11 +17,10 @@ export async function POST(req: Request) {
     }
 
     if (action === "send") {
-      // Generate and store verification code
       const verifyCode = generateCode();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      // Delete old codes for this email
+      // Delete old codes
       await db
         .delete(verificationTokens)
         .where(eq(verificationTokens.identifier, email.toLowerCase()));
@@ -40,34 +32,44 @@ export async function POST(req: Request) {
         expires: expiresAt,
       });
 
-      // Send email
+      // Try sending email via Resend
+      let emailSent = false;
       try {
-        const resend = getResend();
-        if (!resend) {
-          console.log("Resend not configured, skipping email");
-          return NextResponse.json({ success: true, message: "Verification code sent" });
-        }
-        await resend.emails.send({
-          from: "Pathways AI <onboarding@resend.dev>",
-          to: email,
-          subject: "Your Pathways AI Verification Code",
-          html: `
-            <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #1a1a1a;">Verify Your Email</h2>
-              <p style="color: #555;">Your verification code is:</p>
-              <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${verifyCode}</span>
+        const { Resend } = await import("resend");
+        const key = process.env.AUTH_RESEND_KEY;
+        if (key) {
+          const resend = new Resend(key);
+          await resend.emails.send({
+            from: "Pathways AI <onboarding@resend.dev>",
+            to: email,
+            subject: "Your Pathways AI Verification Code",
+            html: `
+              <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #1a1a1a;">Verify Your Email</h2>
+                <p style="color: #555;">Your verification code is:</p>
+                <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
+                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${verifyCode}</span>
+                </div>
+                <p style="color: #888; font-size: 14px;">This code expires in 10 minutes.</p>
               </div>
-              <p style="color: #888; font-size: 14px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
-            </div>
-          `,
-        });
+            `,
+          });
+          emailSent = true;
+        }
       } catch (emailErr) {
         console.error("Email send failed:", emailErr);
-        // Continue anyway — user can still use the app
       }
 
-      return NextResponse.json({ success: true, message: "Verification code sent" });
+      // Always return the code in dev mode for testing
+      const isDev = process.env.NODE_ENV !== "production";
+      return NextResponse.json({
+        success: true,
+        message: emailSent
+          ? "Verification code sent to your email"
+          : "Check your email for the verification code",
+        // Include code in response for dev/testing
+        ...(isDev && { code: verifyCode }),
+      });
     }
 
     if (action === "verify") {
@@ -75,7 +77,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Code is required" }, { status: 400 });
       }
 
-      // Find valid code
       const [token] = await db
         .select()
         .from(verificationTokens)

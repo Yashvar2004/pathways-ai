@@ -18,6 +18,7 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"form" | "verify">("form");
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [devCode, setDevCode] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,12 +47,12 @@ export default function SignUpPage() {
         body: JSON.stringify({ email, action: "send" }),
       });
 
-      if (verifyRes.ok) {
-        setStep("verify");
-      } else {
-        // Skip verification if email fails, just redirect
-        router.push("/dashboard");
+      const verifyData = await verifyRes.json();
+      if (verifyData.code) {
+        setDevCode(verifyData.code);
       }
+
+      setStep("verify");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -94,10 +95,15 @@ export default function SignUpPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">Verify Your Email</CardTitle>
             <CardDescription>
-              We sent a 6-digit code to {email}
+              We sent a 6-digit code to <strong>{email}</strong>
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {devCode && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm mb-4">
+                <strong>Dev mode:</strong> Your code is <strong className="text-lg">{devCode}</strong>
+              </div>
+            )}
             <form onSubmit={handleVerify} className="space-y-4">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
@@ -124,12 +130,14 @@ export default function SignUpPage() {
                 type="button"
                 variant="ghost"
                 className="w-full"
-                onClick={() => {
-                  fetch("/api/auth/verify", {
+                onClick={async () => {
+                  const res = await fetch("/api/auth/verify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, action: "send" }),
                   });
+                  const data = await res.json();
+                  if (data.code) setDevCode(data.code);
                 }}
               >
                 Resend Code

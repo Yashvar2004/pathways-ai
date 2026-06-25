@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { hashPassword, createToken, setSessionCookie } from "@/lib/auth-helpers";
+import { hashPassword } from "@/lib/auth-helpers";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -49,16 +49,24 @@ export async function POST(req: Request) {
       updatedAt: new Date(),
     });
 
-    const token = await createToken(userId, email.toLowerCase());
-    await setSessionCookie(token);
+    // Store in marketing subscribers
+    try {
+      const { marketingSubscribers } = await import("@/lib/db/schema");
+      await db.insert(marketingSubscribers).values({
+        email: email.toLowerCase(),
+        name: name || email.split("@")[0],
+        source: "signup",
+        optedIn: true,
+        createdAt: new Date(),
+      }).onConflictDoNothing();
+    } catch (e) {
+      console.log("Marketing subscriber save skipped:", e);
+    }
 
     return NextResponse.json({
       success: true,
-      user: {
-        id: userId,
-        name: name || email.split("@")[0],
-        email: email.toLowerCase(),
-      },
+      userId,
+      email: email.toLowerCase(),
     });
   } catch (error: any) {
     console.error("Signup error:", error);

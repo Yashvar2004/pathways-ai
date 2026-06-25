@@ -333,6 +333,17 @@ export const verificationCodes = pgTable("verification_codes", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// ── Marketing Subscribers ──────────────────────
+
+export const marketingSubscribers = pgTable("marketing_subscribers", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  source: text("source").notNull().default("signup"),
+  optedIn: boolean("opted_in").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // ── Relations ─────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({

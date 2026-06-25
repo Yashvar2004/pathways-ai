@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { verifyPassword, createToken, setSessionCookie } from "@/lib/auth-helpers";
+import { verifyPassword } from "@/lib/auth-helpers";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: Request) {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     if (!user[0].password) {
       return NextResponse.json(
-        { error: "This account was created with a social login. Please use Google sign-in." },
+        { error: "This account was created with a social login." },
         { status: 401 }
       );
     }
@@ -43,16 +43,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const token = await createToken(user[0].id, user[0].email);
-    await setSessionCookie(token);
-
+    // Return success but don't set session yet — need verification first
     return NextResponse.json({
       success: true,
-      user: {
-        id: user[0].id,
-        name: user[0].name,
-        email: user[0].email,
-      },
+      needsVerification: true,
+      email: user[0].email,
     });
   } catch (error: any) {
     console.error("Signin error:", error);
