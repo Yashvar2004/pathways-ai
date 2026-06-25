@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { getAuth, getCurrentUser } from "@/lib/auth-helpers";
 import { getStripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(_req: NextRequest) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await currentUser();
-  const email = user?.emailAddresses[0]?.emailAddress || "";
+  const user = await getCurrentUser();
+  const email = user?.email || "";
 
   let stripeCustomerId: string;
   const [existing] = await db

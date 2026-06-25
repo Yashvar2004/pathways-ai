@@ -1,27 +1,56 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getRecentSearches } from "@/features/search/queries";
-import { getUserEnrollments } from "@/features/courses/queries";
-import { getUserCertifications } from "@/features/certifications/queries";
 import { Search, BookOpen, Award, ArrowRight } from "lucide-react";
 import { LinkButton } from "@/components/ui/link-button";
-import { syncUser } from "@/features/auth/actions";
+import { useEffect, useState } from "react";
 
-export default async function DashboardPage() {
-  const { userId } = await auth();
-  if (!userId) return null;
+export default function DashboardPage() {
+  const [userName, setUserName] = useState("there");
+  const [stats, setStats] = useState({ searches: 0, courses: 0, certifications: 0 });
+  const [recentSearches, setRecentSearches] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
 
-  // Ensure user is synced to our DB
-  await syncUser();
+  useEffect(() => {
+    // Get user info
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user?.name) {
+          setUserName(data.user.name.split(" ")[0] || data.user.email?.split("@")[0] || "there");
+        }
+      })
+      .catch(() => {});
 
-  const user = await currentUser();
-  const userName = user?.firstName || user?.emailAddresses[0]?.emailAddress?.split("@")[0] || "there";
+    // Load dashboard data
+    async function loadData() {
+      try {
+        const [searchRes, courseRes, certRes] = await Promise.all([
+          fetch("/api/research?limit=5"),
+          fetch("/api/courses?limit=5"),
+          fetch("/api/certifications?limit=5"),
+        ]);
 
-  const [recentSearches, enrollments, certifications] = await Promise.all([
-    getRecentSearches(userId),
-    getUserEnrollments(userId),
-    getUserCertifications(userId),
-  ]);
+        if (searchRes.ok) {
+          const data = await searchRes.json();
+          setRecentSearches(data.topics || []);
+          setStats((s) => ({ ...s, searches: data.topics?.length || 0 }));
+        }
+        if (courseRes.ok) {
+          const data = await courseRes.json();
+          setEnrollments(data.enrollments || []);
+          setStats((s) => ({ ...s, courses: data.enrollments?.length || 0 }));
+        }
+        if (certRes.ok) {
+          const data = await certRes.json();
+          setStats((s) => ({ ...s, certifications: data.certifications?.length || 0 }));
+        }
+      } catch (e) {
+        console.error("Failed to load dashboard data:", e);
+      }
+    }
+    loadData();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -41,8 +70,10 @@ export default async function DashboardPage() {
             <Search className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{recentSearches.length}</p>
-            <LinkButton variant="link" size="sm" className="px-0 mt-1" href="/dashboard/search">Start a new search <ArrowRight className="ml-1 h-3 w-3" /></LinkButton>
+            <p className="text-3xl font-bold">{stats.searches}</p>
+            <LinkButton variant="link" size="sm" className="px-0 mt-1" href="/dashboard/search">
+              Start a new search <ArrowRight className="ml-1 h-3 w-3" />
+            </LinkButton>
           </CardContent>
         </Card>
 
@@ -52,8 +83,10 @@ export default async function DashboardPage() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{enrollments.length}</p>
-            <LinkButton variant="link" size="sm" className="px-0 mt-1" href="/dashboard/courses">View courses <ArrowRight className="ml-1 h-3 w-3" /></LinkButton>
+            <p className="text-3xl font-bold">{stats.courses}</p>
+            <LinkButton variant="link" size="sm" className="px-0 mt-1" href="/dashboard/courses">
+              View courses <ArrowRight className="ml-1 h-3 w-3" />
+            </LinkButton>
           </CardContent>
         </Card>
 
@@ -63,8 +96,10 @@ export default async function DashboardPage() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{certifications.length}</p>
-            <LinkButton variant="link" size="sm" className="px-0 mt-1" href="/dashboard/certifications">View certifications <ArrowRight className="ml-1 h-3 w-3" /></LinkButton>
+            <p className="text-3xl font-bold">{stats.certifications}</p>
+            <LinkButton variant="link" size="sm" className="px-0 mt-1" href="/dashboard/certifications">
+              View certifications <ArrowRight className="ml-1 h-3 w-3" />
+            </LinkButton>
           </CardContent>
         </Card>
       </div>
@@ -73,7 +108,7 @@ export default async function DashboardPage() {
         <div>
           <h2 className="text-lg font-semibold mb-3">Recent Searches</h2>
           <div className="grid gap-2">
-            {(recentSearches as any[]).map((topic: any) => (
+            {recentSearches.map((topic: any) => (
               <Card key={topic.id} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
@@ -82,7 +117,9 @@ export default async function DashboardPage() {
                       {new Date(topic.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <LinkButton variant="ghost" size="sm" href={`/dashboard/search/${topic.id}`}>View Results</LinkButton>
+                  <LinkButton variant="ghost" size="sm" href={`/dashboard/search/${topic.id}`}>
+                    View Results
+                  </LinkButton>
                 </CardContent>
               </Card>
             ))}
@@ -94,21 +131,23 @@ export default async function DashboardPage() {
         <div>
           <h2 className="text-lg font-semibold mb-3">In Progress</h2>
           <div className="grid gap-2">
-            {(enrollments as any[]).filter((e: any) => e.course).map((enrollment: any) => (
-              <Card key={enrollment.id} className="hover:border-primary/30 transition-colors">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{enrollment.course!.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Progress: {enrollment.progress}%
-                    </p>
-                  </div>
-                  <LinkButton variant="ghost" size="sm" href={`/dashboard/courses/${enrollment.courseId}`}>
-                    Continue
-                  </LinkButton>
-                </CardContent>
-              </Card>
-            ))}
+            {enrollments
+              .filter((e: any) => e.course)
+              .map((enrollment: any) => (
+                <Card key={enrollment.id} className="hover:border-primary/30 transition-colors">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{enrollment.course!.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Progress: {enrollment.progress}%
+                      </p>
+                    </div>
+                    <LinkButton variant="ghost" size="sm" href={`/dashboard/courses/${enrollment.courseId}`}>
+                      Continue
+                    </LinkButton>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         </div>
       )}

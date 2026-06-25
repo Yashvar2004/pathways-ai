@@ -1,6 +1,6 @@
 import { SearchInput } from "@/components/search/search-input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { getRecentSearches } from "@/features/search/queries";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 export default async function SearchPage() {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   const recentSearches = userId
     ? await getRecentSearches(userId)
     : [];

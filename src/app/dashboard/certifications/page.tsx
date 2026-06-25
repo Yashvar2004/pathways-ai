@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { getUserCertifications } from "@/features/certifications/queries";
 import { CertificationCard } from "@/components/certifications/certification-card";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 export default async function CertificationsPage() {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) return null;
 
   const certifications = await getUserCertifications(userId);

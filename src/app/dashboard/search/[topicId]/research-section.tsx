@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { researchCache, topics } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { ResearchContent } from "./research-content";
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 
 interface ResearchSectionProps {
   topicId: number;
@@ -16,7 +16,7 @@ interface ResearchSectionProps {
 
 export async function ResearchSection({ topicId, query }: ResearchSectionProps) {
   console.log("[ResearchSection] Starting for topicId:", topicId, "query:", query);
-  const { userId: authUserId } = await auth();
+  const { userId: authUserId } = await getAuth();
   const userId = authUserId || "unknown";
   // Check cache first
   const [cached] = await db

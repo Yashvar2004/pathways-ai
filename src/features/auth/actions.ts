@@ -1,18 +1,18 @@
 "use server";
 
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { getAuth, getCurrentUser } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function syncUser() {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) return null;
 
-  const clerkUser = await currentUser();
+  const clerkUser = await getCurrentUser();
   if (!clerkUser) return null;
 
-  const email = clerkUser.emailAddresses[0]?.emailAddress;
+  const email = clerkUser.email;
   if (!email) return null;
 
   // Check if user exists in our DB
@@ -28,7 +28,7 @@ export async function syncUser() {
       id: userId,
       email,
       name: clerkUser.firstName
-        ? `${clerkUser.firstName} ${clerkUser.lastName || ""}`.trim()
+        ? `${clerkUser.firstName} ${clerkUser.lastName}`.trim()
         : email.split("@")[0],
     });
   }

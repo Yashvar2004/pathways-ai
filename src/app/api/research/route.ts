@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { researchCache, topics } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { getResearchPrompt } from "@/lib/ai/prompts";
 
 export async function POST(req: NextRequest) {
   console.log("[Research API] POST request received");
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   console.log("[Research API] Session:", userId ? "authenticated" : "NOT authenticated");
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });

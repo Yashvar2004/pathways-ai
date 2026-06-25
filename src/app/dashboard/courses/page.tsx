@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { getUserEnrollments } from "@/features/courses/queries";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ export const metadata = {
 };
 
 export default async function CoursesPage() {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) return null;
 
   const enrollments = await getUserEnrollments(userId);

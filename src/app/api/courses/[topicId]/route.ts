@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { topics, courses } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -8,7 +8,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ topicId: string }> }
 ) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import {
   enrollments,
@@ -15,7 +15,7 @@ import { eq, and, asc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function enrollCourse(courseId: number) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   const [existing] = await db
@@ -44,7 +44,7 @@ export async function markModuleComplete(
   enrollmentId: number,
   moduleId: number
 ) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   const [existing] = await db

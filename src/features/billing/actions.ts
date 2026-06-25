@@ -1,6 +1,6 @@
 "use server";
 
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { getAuth, getCurrentUser } from "@/lib/auth-helpers";
 import { getStripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
@@ -8,11 +8,11 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 export async function createCheckoutSession() {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
-  const user = await currentUser();
-  const email = user?.emailAddresses[0]?.emailAddress || "";
+  const user = await getCurrentUser();
+  const email = user?.email || "";
 
   let stripeCustomerId: string;
 
@@ -46,7 +46,7 @@ export async function createCheckoutSession() {
 }
 
 export async function createPortalSession() {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   const [sub] = await db

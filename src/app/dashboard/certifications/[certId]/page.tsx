@@ -1,4 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { getAuth, getCurrentUser } from "@/lib/auth-helpers";
 import { getCertificationById } from "@/features/certifications/queries";
 import { CertificateDisplay } from "@/components/certifications/certificate-display";
 import { notFound } from "next/navigation";
@@ -9,11 +9,13 @@ export default async function CertificationDetailPage({
   params: Promise<{ certId: string }>;
 }) {
   const { certId } = await params;
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) return null;
 
-  const user = await currentUser();
-  const userName = user?.fullName || user?.firstName || "Learner";
+  const user = await getCurrentUser();
+  const userName = user?.firstName
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : user?.email?.split("@")[0] || "Learner";
 
   const certification = await getCertificationById(Number(certId));
   if (!certification) notFound();

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { topics, resources, courses } from "@/lib/db/schema";
 import { checkSearchQuota, incrementSearchCount } from "@/features/billing/queries";
@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { syncUser } from "@/features/auth/actions";
 
 export async function searchTopic(query: string) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   // Ensure user exists in our DB
@@ -41,7 +41,7 @@ export async function searchTopic(query: string) {
 }
 
 export async function getTopicDetail(topicId: number) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   // Use simple selects instead of relational query

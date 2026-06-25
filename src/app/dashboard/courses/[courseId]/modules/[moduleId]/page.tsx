@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { getModuleById } from "@/features/courses/queries";
 import { getEnrollment } from "@/features/courses/queries";
 import { AIVideoPlayer } from "@/components/courses/ai-video-player";
@@ -18,7 +18,7 @@ export default async function ModuleDetailPage({
   params: Promise<{ courseId: string; moduleId: string }>;
 }) {
   const { courseId, moduleId } = await params;
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) return null;
 
   const module_ = await getModuleById(Number(moduleId));

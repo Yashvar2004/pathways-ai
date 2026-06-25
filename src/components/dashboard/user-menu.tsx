@@ -1,7 +1,6 @@
 "use client";
 
-import { useUser, SignOutButton } from "@clerk/nextjs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,13 +11,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export function UserMenu() {
-  const { user } = useUser();
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
 
-  const initials = user?.firstName
-    ? (user.firstName[0] + (user.lastName?.[0] || "")).toUpperCase()
-    : user?.emailAddresses[0]?.emailAddress?.[0]?.toUpperCase() || "U";
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch(() => {});
+  }, []);
+
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+    : user?.email?.[0]?.toUpperCase() || "U";
+
+  async function handleSignOut() {
+    await fetch("/api/auth/signout", { method: "POST" });
+    router.push("/");
+  }
 
   return (
     <DropdownMenu>
@@ -26,9 +44,6 @@ export function UserMenu() {
         render={
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
-              {user?.imageUrl ? (
-                <AvatarImage src={user.imageUrl} alt={user.fullName || ""} />
-              ) : null}
               <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 {initials}
               </AvatarFallback>
@@ -39,9 +54,9 @@ export function UserMenu() {
       <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.fullName || "User"}</p>
+            <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user?.emailAddresses[0]?.emailAddress}
+              {user?.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -49,10 +64,8 @@ export function UserMenu() {
         <DropdownMenuItem
           render={<Link href="/dashboard/settings">Settings</Link>}
         />
-        <DropdownMenuItem className="text-destructive cursor-pointer">
-          <SignOutButton>
-            <span>Sign Out</span>
-          </SignOutButton>
+        <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleSignOut}>
+          Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

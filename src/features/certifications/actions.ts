@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import {
   assessments,
@@ -19,7 +19,7 @@ export async function submitAssessment(
   assessmentId: number,
   userAnswers: number[]
 ) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   // Get assessment
@@ -96,7 +96,7 @@ export async function claimCertification(
   assessmentAttemptId: number,
   certificationId: number
 ) {
-  const { userId } = await auth();
+  const { userId } = await getAuth();
   if (!userId) throw new Error("Not authenticated");
 
   // Verify attempt passed

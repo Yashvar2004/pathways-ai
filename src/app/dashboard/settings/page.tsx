@@ -1,30 +1,35 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { getUserUsage } from "@/features/billing/queries";
-import { SubscriptionStatus } from "@/components/billing/subscription-status";
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { SignOutButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export const metadata = {
-  title: "Settings",
-};
+export default function SettingsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
 
-export default async function SettingsPage() {
-  const { userId } = await auth();
-  if (!userId) return null;
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch(() => {});
+  }, []);
 
-  const user = await currentUser();
-  const usage = await getUserUsage(userId);
-
-  const userName = user?.fullName || user?.firstName || "User";
-  const userEmail = user?.emailAddresses[0]?.emailAddress || "";
+  const userName = user?.name || user?.email?.split("@")[0] || "User";
+  const userEmail = user?.email || "";
   const initials = userName
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
     .toUpperCase() || "U";
+
+  async function handleSignOut() {
+    await fetch("/api/auth/signout", { method: "POST" });
+    router.push("/");
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -42,9 +47,6 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent className="flex items-center gap-4">
           <Avatar className="h-16 w-16">
-            {user?.imageUrl ? (
-              <AvatarImage src={user.imageUrl} alt={userName} />
-            ) : null}
             <AvatarFallback className="text-lg bg-primary/10 text-primary">
               {initials}
             </AvatarFallback>
@@ -56,15 +58,11 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      <SubscriptionStatus usage={usage} />
-
       <Separator />
 
-      <SignOutButton>
-        <Button variant="destructive" type="button">
-          Sign Out
-        </Button>
-      </SignOutButton>
+      <Button variant="destructive" onClick={handleSignOut}>
+        Sign Out
+      </Button>
     </div>
   );
 }
