@@ -3,9 +3,20 @@ import { db } from "@/lib/db";
 import { users, verificationTokens } from "@/lib/db/schema";
 import { createToken, setSessionCookie } from "@/lib/auth-helpers";
 import { eq, and } from "drizzle-orm";
+import nodemailer from "nodemailer";
 
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function getTransporter() {
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+  });
 }
 
 export async function POST(req: Request) {
@@ -32,39 +43,27 @@ export async function POST(req: Request) {
         expires: expiresAt,
       });
 
-      // Try sending email via Resend
+      // Send email via Gmail SMTP
       let emailSent = false;
       try {
-        const { Resend } = await import("resend");
-        const key = process.env.AUTH_RESEND_KEY;
-        if (key) {
-          const resend = new Resend(key);
-          const result = await Promise.race([
-            resend.emails.send({
-              from: "onboarding@resend.dev",
-              to: email,
-              subject: "Your Pathways AI Verification Code",
-              html: `
-                <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-                  <h2 style="color: #1a1a1a;">Verify Your Email</h2>
-                  <p style="color: #555;">Your verification code is:</p>
-                  <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
-                    <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${verifyCode}</span>
-                  </div>
-                  <p style="color: #888; font-size: 14px;">This code expires in 10 minutes.</p>
+        const transporter = getTransporter();
+        if (transporter) {
+          await transporter.sendMail({
+            from: `"Pathways AI" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: "Your Pathways AI Verification Code",
+            html: `
+              <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #1a1a1a;">Verify Your Email</h2>
+                <p style="color: #555;">Your verification code is:</p>
+                <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
+                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${verifyCode}</span>
                 </div>
-              `,
-            }),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("Email timeout")), 10000)
-            ),
-          ]);
-
-          if (result && !(result as any).error) {
-            emailSent = true;
-          } else {
-            console.log("Resend error:", (result as any)?.error);
-          }
+                <p style="color: #888; font-size: 14px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
+              </div>
+            `,
+          });
+          emailSent = true;
         }
       } catch (emailErr: any) {
         console.error("Email send failed:", emailErr?.message || emailErr);
@@ -74,8 +73,7 @@ export async function POST(req: Request) {
         success: true,
         message: emailSent
           ? "Verification code sent to your email"
-          : "Verification code generated. Check your email.",
-        // Include code when email fails (for dev/testing)
+          : "Failed to send email. Please try again.",
         ...(!emailSent && { code: verifyCode }),
       });
     }
